@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unity Stream</title>
+</head>
+<body>
+  <video id="video" autoplay playsinline></video>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const socket = io('http://your-signaling-server-url:3000');
+    const peerConnection = new RTCPeerConnection();
+
+    socket.on('offer', async (data) => {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(data));
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      socket.emit('answer', answer);
+    });
+
+    socket.on('answer', async (data) => {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(data));
+    });
+
+    socket.on('candidate', async (data) => {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(data));
+    });
+
+    peerConnection.onicecandidate = ({ candidate }) => {
+      if (candidate) {
+        socket.emit('candidate', candidate);
+      }
+    };
+
+    peerConnection.ontrack = (event) => {
+      video.srcObject = event.streams[0];
+    };
+
+    // Assume the Unity side sends the video track
+    // peerConnection.addTrack(videoTrack);
+  </script>
+</body>
+</html>
